@@ -1,0 +1,145 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- GUI nút chính
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+
+local Button = Instance.new("TextButton")
+Button.Parent = ScreenGui
+Button.Text = "Run Remote"
+Button.Size = UDim2.new(0, 120, 0, 40)
+Button.Position = UDim2.new(0.4, 0, 0.4, 0)
+Button.BackgroundColor3 = Color3.fromRGB(45, 170, 255)
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 16
+Button.BorderSizePixel = 0
+Button.Active = true
+Button.Draggable = true
+
+-- Biến lưu Remote
+local savedRemote = nil
+
+-- Popup chọn Remote
+local function showChooser(eventObj, eventVariantObj)
+    local popup = Instance.new("Frame")
+    popup.Size = UDim2.new(0, 220, 0, 100)
+    popup.Position = UDim2.new(0.5, -110, 0.5, -50)
+    popup.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    popup.BorderSizePixel = 0
+    popup.Parent = ScreenGui
+
+    local title = Instance.new("TextLabel")
+    title.Parent = popup
+    title.Size = UDim2.new(1, 0, 0.4, 0)
+    title.Text = "Choose Remote"
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+
+    local btnEvent = Instance.new("TextButton")
+    btnEvent.Parent = popup
+    btnEvent.Size = UDim2.new(0.45, 0, 0.4, 0)
+    btnEvent.Position = UDim2.new(0.05, 0, 0.5, 0)
+    btnEvent.Text = "Event"
+    btnEvent.BackgroundColor3 = Color3.fromRGB(60,160,255)
+    btnEvent.TextColor3 = Color3.new(1,1,1)
+    btnEvent.Font = Enum.Font.GothamBold
+    btnEvent.TextSize = 16
+
+    local btnVariant = Instance.new("TextButton")
+    btnVariant.Parent = popup
+    btnVariant.Size = UDim2.new(0.45, 0, 0.4, 0)
+    btnVariant.Position = UDim2.new(0.5, 0, 0.5, 0)
+    btnVariant.Text = "EventVariant"
+    btnVariant.BackgroundColor3 = Color3.fromRGB(100,200,100)
+    btnVariant.TextColor3 = Color3.new(1,1,1)
+    btnVariant.Font = Enum.Font.GothamBold
+    btnVariant.TextSize = 16
+
+    btnEvent.MouseButton1Click:Connect(function()
+        savedRemote = eventObj
+        Button.Text = "[Event] Saved"
+        popup:Destroy()
+        task.wait(1.5)
+        Button.Text = "Run Remote"
+    end)
+
+    btnVariant.MouseButton1Click:Connect(function()
+        savedRemote = eventVariantObj
+        Button.Text = "[EventVariant] Saved"
+        popup:Destroy()
+        task.wait(1.5)
+        Button.Text = "Run Remote"
+    end)
+end
+
+-- Hàm tìm remote trong tool
+local function findRemote(tool)
+    local eventObj, eventVariantObj
+
+    for _, v in ipairs(tool:GetDescendants()) do
+        if v:IsA("RemoteEvent") then
+            if v.Name == "Event" then
+                eventObj = v
+            elseif v.Name == "EventVariant" then
+                eventVariantObj = v
+            end
+        end
+    end
+
+    if eventObj and eventVariantObj then
+        showChooser(eventObj, eventVariantObj)
+        return nil
+    end
+
+    if eventObj then return eventObj end
+    if eventVariantObj then return eventVariantObj end
+
+    -- Nếu không có -> thử Variant rồi Variant4
+    for _, v in ipairs(tool:GetDescendants()) do
+        if v:IsA("RemoteEvent") and (v.Name == "Variant" or v.Name == "Variant4") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- Cập nhật remote khi equip tool
+local function updateRemote(tool)
+    local remote = findRemote(tool)
+    if remote then
+        savedRemote = remote
+        Button.Text = "[" .. remote.Name .. "] Saved"
+        task.wait(1.5)
+        Button.Text = "Run Remote"
+    end
+end
+
+-- Theo dõi khi cầm tool mới
+local function setupChar(char)
+    char.ChildAdded:Connect(function(obj)
+        if obj:IsA("Tool") then
+            updateRemote(obj)
+        end
+    end)
+end
+
+player.CharacterAdded:Connect(setupChar)
+if player.Character then
+    setupChar(player.Character)
+end
+
+-- Khi bấm nút
+Button.MouseButton1Click:Connect(function()
+    if savedRemote then
+        savedRemote:FireServer()
+        Button.Text = savedRemote.Name .. " Fired!"
+    else
+        Button.Text = "No Remote Saved!"
+    end
+    task.wait(1.5)
+    Button.Text = "Run Remote"
+end)
